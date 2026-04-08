@@ -3,10 +3,9 @@ const LOOP_SECONDS = 4;
 const EXPORT_SECONDS = 8;
 const RECORD_SECONDS = 8;
 const STORAGE_KEY = "distant-lights-saved-presets-v1";
+const THEME_STORAGE_KEY = "distant-lights-theme-v1";
+const TAB_BREAKPOINT = 900;
 
-// Default parameters for the demo. Additional fields such as `material` and
-// `acousticCutoff` support the more advanced photoacoustic model. See
-// `CONTROL_CONFIG` for slider/select definitions.
 const DEFAULT_PARAMS = {
   label: "Custom",
   mode: "electrical",
@@ -15,8 +14,6 @@ const DEFAULT_PARAMS = {
   duty: 0.3,
   depth: 0.8,
   thermalCutoff: 80,
-  acousticCutoff: 1000,
-  material: "Soft Tissue",
   resonanceHz: 180,
   resonanceQ: 1.2,
   resonanceMix: 0.28,
@@ -26,6 +23,75 @@ const DEFAULT_PARAMS = {
   gain: 2.2,
   lowFreqSonify: false,
   carrierFreq: 220,
+};
+
+const DEFAULT_THEME = {
+  bgStart: "#08111e",
+  bgEnd: "#0d1627",
+  panelLight: "#f7f8fc",
+  panelLightText: "#10203f",
+  darkStart: "#16243d",
+  darkEnd: "#0d1526",
+  text: "#e9edf6",
+  muted: "#aeb9d0",
+  line: "#344765",
+  accent: "#79e3ff",
+  accent2: "#f093fb",
+  buttonBg: "#f4f7fb",
+  buttonText: "#10203f",
+  primaryBg: "#ffffff",
+  primaryText: "#0d1526",
+  controlBg: "#ffffff",
+  controlBorder: "#d8deec",
+  controlValueBg: "#eef3fa",
+  warning: "#ffd38d",
+  warningText: "#ffe6bf",
+};
+
+const THEME_FIELDS = [
+  { key: "bgStart", label: "Page bg start", hint: "Top of the page background." },
+  { key: "bgEnd", label: "Page bg end", hint: "Bottom of the page background." },
+  { key: "darkStart", label: "Dark card start", hint: "Dark panel gradient start." },
+  { key: "darkEnd", label: "Dark card end", hint: "Dark panel gradient end." },
+  { key: "panelLight", label: "Light cards", hint: "Background for white cards." },
+  { key: "panelLightText", label: "Light card text", hint: "Text colour inside white cards." },
+  { key: "text", label: "Dark card text", hint: "Text on the dark panels." },
+  { key: "muted", label: "Muted text", hint: "Descriptions and helper copy." },
+  { key: "line", label: "Borders", hint: "General border and divider tone." },
+  { key: "accent", label: "Accent 1", hint: "Main waveform and sliders." },
+  { key: "accent2", label: "Accent 2", hint: "Second waveform tone." },
+  { key: "buttonBg", label: "Light buttons", hint: "Buttons on light cards." },
+  { key: "buttonText", label: "Light button text", hint: "Text on light buttons." },
+  { key: "primaryBg", label: "Primary button", hint: "Main CTA background." },
+  { key: "primaryText", label: "Primary button text", hint: "Main CTA label colour." },
+  { key: "controlBg", label: "Control cards", hint: "Slider card backgrounds." },
+  { key: "controlBorder", label: "Control borders", hint: "Borders for control cards." },
+  { key: "controlValueBg", label: "Value chips", hint: "Small value badges." },
+  { key: "warning", label: "Warning tone", hint: "Warning panel accent." },
+  { key: "warningText", label: "Warning text", hint: "Warning panel text colour." },
+];
+
+const THEME_TO_CSS_VAR = {
+  bgStart: "--bg-start",
+  bgEnd: "--bg-end",
+  panelLight: "--panel-light",
+  panelLightText: "--panel-light-text",
+  darkStart: "--dark-start",
+  darkEnd: "--dark-end",
+  text: "--text",
+  muted: "--muted",
+  line: "--line",
+  accent: "--accent",
+  accent2: "--accent2",
+  buttonBg: "--button-bg",
+  buttonText: "--button-text",
+  primaryBg: "--primary-bg",
+  primaryText: "--primary-text",
+  controlBg: "--control-bg",
+  controlBorder: "--control-border",
+  controlValueBg: "--control-value-bg",
+  warning: "--warning",
+  warningText: "--warning-text",
 };
 
 const PRESETS = [
@@ -43,27 +109,21 @@ const PRESETS = [
   },
   {
     name: "Photoacoustic chopped light",
-    params: { ...DEFAULT_PARAMS, label: "Photoacoustic chopped light", mode: "photoacoustic", baseFreq: 440, waveform: "square", duty: 0.5, depth: 1, thermalCutoff: 120, acousticCutoff: 1500, material: "Soft Tissue", resonanceHz: 440, resonanceQ: 6, resonanceMix: 0.5, noiseLevel: 0.004, gain: 5 },
+    params: { ...DEFAULT_PARAMS, label: "Photoacoustic chopped light", mode: "photoacoustic", baseFreq: 440, waveform: "square", duty: 0.5, depth: 1, thermalCutoff: 120, resonanceHz: 440, resonanceQ: 6, resonanceMix: 0.5, noiseLevel: 0.004, gain: 5 },
   },
   {
     name: "Slow collision beacon (sonified)",
     params: { ...DEFAULT_PARAMS, label: "Slow collision beacon (sonified)", mode: "electrical", baseFreq: 1.2, waveform: "pwm", duty: 0.18, depth: 1, lowFreqSonify: true, carrierFreq: 330, resonanceHz: 330, resonanceQ: 3.5, resonanceMix: 0.2, noiseLevel: 0.003, gain: 2.5 },
   },
-  {
-    name: "Photoacoustic advanced (soft tissue)",
-    params: { ...DEFAULT_PARAMS, label: "Photoacoustic advanced", mode: "photoacoustic-full", baseFreq: 220, waveform: "square", duty: 0.5, depth: 1, thermalCutoff: 100, acousticCutoff: 1200, material: "Soft Tissue", resonanceHz: 220, resonanceQ: 4, resonanceMix: 0.4, noiseLevel: 0.003, gain: 5 },
-  },
 ];
 
 const CONTROL_CONFIG = [
-  { key: "mode", type: "select", label: "Mode", options: ["electrical", "photoacoustic", "photoacoustic-full"], hint: "Choose the underlying physical model." },
+  { key: "mode", type: "select", label: "Mode", options: ["electrical", "photoacoustic"] },
   { key: "waveform", type: "select", label: "Waveform", options: ["sine", "square", "triangle", "pwm", "abs-sine"] },
   { key: "baseFreq", type: "range", label: "Base frequency (Hz)", min: 0.2, max: 2000, step: 0.1, hint: "100 Hz is common in UK mains ripple lighting." },
   { key: "depth", type: "range", label: "Modulation depth", min: 0, max: 1, step: 0.01, hint: "How strongly the light or current varies over time." },
   { key: "duty", type: "range", label: "PWM duty", min: 0.02, max: 0.98, step: 0.01, hint: "Only matters for PWM-style waveforms." },
-  { key: "thermalCutoff", type: "range", label: "Thermal cutoff (Hz)", min: 1, max: 2000, step: 1, hint: "Time constant for thermal diffusion." },
-  { key: "acousticCutoff", type: "range", label: "Acoustic cutoff (Hz)", min: 20, max: 10000, step: 10, hint: "High-pass filter for the full photoacoustic model." },
-  { key: "material", type: "select", label: "Material", options: ["Soft Tissue", "Water", "Metal", "Glass", "Plastic"], hint: "Select material for approximate thermal and acoustic properties." },
+  { key: "thermalCutoff", type: "range", label: "Thermal cutoff (Hz)", min: 1, max: 1000, step: 1, hint: "Mainly for photoacoustic mode." },
   { key: "resonanceHz", type: "range", label: "Resonance center (Hz)", min: 20, max: 12000, step: 1, hint: "Mechanical body or enclosure resonance." },
   { key: "resonanceQ", type: "range", label: "Resonance Q", min: 0.2, max: 20, step: 0.1, hint: "Higher Q means a narrower ring." },
   { key: "resonanceMix", type: "range", label: "Resonance mix", min: 0, max: 1, step: 0.01, hint: "Blend between dry signal and resonant body." },
@@ -77,8 +137,10 @@ const CONTROL_CONFIG = [
 
 const state = {
   params: cloneParams(PRESETS[0].params),
+  theme: loadTheme(),
   isPlaying: false,
   isRecording: false,
+  activeTab: "overview",
   audioContext: null,
   source: null,
   gainNode: null,
@@ -92,12 +154,12 @@ const els = {
   presetSelect: document.getElementById("presetSelect"),
   labelInput: document.getElementById("labelInput"),
   controlsContainer: document.getElementById("controlsContainer"),
+  themeControls: document.getElementById("themeControls"),
   savedPresetSelect: document.getElementById("savedPresetSelect"),
   statusText: document.getElementById("statusText"),
   capabilityText: document.getElementById("capabilityText"),
   lightCanvas: document.getElementById("lightCanvas"),
   audioCanvas: document.getElementById("audioCanvas"),
-  fftCanvas: document.getElementById("fftCanvas"),
   modelTitle: document.getElementById("modelTitle"),
   modelLine1: document.getElementById("modelLine1"),
   modelLine2: document.getElementById("modelLine2"),
@@ -112,11 +174,15 @@ const els = {
   exportWavBtn: document.getElementById("exportWavBtn"),
   recordBtn: document.getElementById("recordBtn"),
   exportJsonBtn: document.getElementById("exportJsonBtn"),
-  exportCsvBtn: document.getElementById("exportCsvBtn"),
   saveBrowserBtn: document.getElementById("saveBrowserBtn"),
   loadBrowserBtn: document.getElementById("loadBrowserBtn"),
   deleteBrowserBtn: document.getElementById("deleteBrowserBtn"),
+  applyThemeBtn: document.getElementById("applyThemeBtn"),
+  resetThemeBtn: document.getElementById("resetThemeBtn"),
+  downloadThemeBtn: document.getElementById("downloadThemeBtn"),
   importPresetInput: document.getElementById("importPresetInput"),
+  tabButtons: [...document.querySelectorAll(".tab-btn")],
+  paneSections: [...document.querySelectorAll(".panel-section")],
 };
 
 function cloneParams(params) {
@@ -125,6 +191,42 @@ function cloneParams(params) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function loadTheme() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(THEME_STORAGE_KEY) || "null");
+    return saved ? { ...DEFAULT_THEME, ...saved } : { ...DEFAULT_THEME };
+  } catch {
+    return { ...DEFAULT_THEME };
+  }
+}
+
+function saveTheme(theme) {
+  localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(theme));
+}
+
+function applyTheme(theme, persist = true) {
+  state.theme = { ...DEFAULT_THEME, ...theme };
+  const root = document.documentElement;
+  Object.entries(THEME_TO_CSS_VAR).forEach(([key, cssVar]) => {
+    root.style.setProperty(cssVar, state.theme[key]);
+  });
+  root.style.setProperty("--button-dark-bg", `${hexToRgba(state.theme.text, 0.08)}`);
+  root.style.setProperty("--button-dark-text", state.theme.text);
+  root.style.setProperty("--canvas-bg", `${hexToRgba("#000000", 0.26)}`);
+  if (persist) saveTheme(state.theme);
+}
+
+function hexToRgba(hex, alpha) {
+  const clean = String(hex || "").replace("#", "");
+  const normalized = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  const num = parseInt(normalized, 16);
+  if (Number.isNaN(num) || normalized.length !== 6) return `rgba(255,255,255,${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function waveSample(t, freq, waveform, duty) {
@@ -158,12 +260,18 @@ function makeBandPassCoefficients(sampleRate, f0, q) {
 function applyBandPass(samples, sampleRate, f0, q) {
   const c = makeBandPassCoefficients(sampleRate, f0, q);
   const out = new Float32Array(samples.length);
-  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  let x1 = 0;
+  let x2 = 0;
+  let y1 = 0;
+  let y2 = 0;
   for (let i = 0; i < samples.length; i += 1) {
     const x0 = samples[i];
     const y0 = c.b0 * x0 + c.b1 * x1 + c.b2 * x2 - c.a1 * y1 - c.a2 * y2;
     out[i] = y0;
-    x2 = x1; x1 = x0; y2 = y1; y1 = y0;
+    x2 = x1;
+    x1 = x0;
+    y2 = y1;
+    y1 = y0;
   }
   return out;
 }
@@ -171,19 +279,9 @@ function applyBandPass(samples, sampleRate, f0, q) {
 function synthesize(params, seconds, sampleRate = SAMPLE_RATE) {
   const total = Math.floor(seconds * sampleRate);
   const dry = new Float32Array(total);
-  // Thermal filter coefficient for both basic photoacoustic and full models. The factor
-  // determines how quickly heat decays (higher cutoff → faster decay).
   const alpha = 1 - Math.exp((-2 * Math.PI * Math.max(0.1, params.thermalCutoff)) / sampleRate);
   let thermal = 0;
   let prevThermal = 0;
-  // High-pass filter state for the full photoacoustic model
-  const dt = 1 / sampleRate;
-  const acCut = Math.max(1, params.acousticCutoff || 1000);
-  const RC = 1 / (2 * Math.PI * acCut);
-  const hpAlpha = RC / (RC + dt);
-  let hpPrevX = 0;
-  let hpPrevY = 0;
-  // Seed for pseudo-random noise
   let seed = 1337;
 
   for (let i = 0; i < total; i += 1) {
@@ -193,35 +291,20 @@ function synthesize(params, seconds, sampleRate = SAMPLE_RATE) {
     let x = 0;
 
     if (params.lowFreqSonify || params.baseFreq < 20) {
-      // Carrier-based sonification for very low modulation frequencies
       const carrier = Math.sin(2 * Math.PI * params.carrierFreq * t);
       x = (light - 0.5) * carrier * 2;
     } else if (params.mode === "photoacoustic") {
-      // Basic photoacoustic approximation: single thermal low-pass then derivative
       thermal += alpha * (light - thermal);
       x = (thermal - prevThermal) * sampleRate * 0.01;
       prevThermal = thermal;
-    } else if (params.mode === "photoacoustic-full") {
-      // Full photoacoustic model: thermal low-pass → derivative → acoustic high-pass
-      thermal += alpha * (light - thermal);
-      const diff = (thermal - prevThermal) * sampleRate * 0.01;
-      prevThermal = thermal;
-      // RC high-pass filter; hpAlpha derived from RC and sample interval
-      const y = hpAlpha * (hpPrevY + diff - hpPrevX);
-      hpPrevX = diff;
-      hpPrevY = y;
-      x = y;
     } else {
-      // Electrical / mechanical hum model: treat modulation as symmetrical AC current
       x = light - 0.5;
     }
 
-    // Add optional high-frequency driver or capacitor whine
     if (params.whineFreq > 0 && params.whineLevel > 0) {
       x += params.whineLevel * Math.sin(2 * Math.PI * params.whineFreq * t);
     }
 
-    // Pseudo-random broadband noise
     if (params.noiseLevel > 0) {
       seed = (1664525 * seed + 1013904223) >>> 0;
       const noise = (seed / 0xffffffff) * 2 - 1;
@@ -295,40 +378,28 @@ function safeName(text) {
 }
 
 function physicsSummary(params) {
-  // Provide explanatory text and equations depending on the selected model.
-  if (params.mode === "photoacoustic-full") {
-    return {
-      title: "Full photoacoustic model",
-      line1: "Absorbed modulated light causes heating; the pressure signal follows the time derivative and an acoustic high-pass.",
-      line2: "Material: " + params.material + ". Adjustable thermal and acoustic cutoffs approximate diffusion and stress wave propagation.",
-      formula1: "I(t) = I₀ [1 + m·s(t)],   tau_th·dT/dt = I(t) − T",
-      formula2: "p(t) ∝ HP_{tau_ac}(dT/dt)",
-      chain: ["Modulated light", "Thermal diffusion", "Thermal derivative", "Acoustic high-pass", "Resonant body", "Audio output"],
-    };
-  }
   if (params.mode === "photoacoustic") {
     return {
       title: "Photoacoustic approximation",
       line1: "Absorbed light becomes heat, and periodic heating drives periodic pressure changes.",
       line2: "This demo uses a thermal low-pass plus a derivative-like pressure estimate, then an acoustic resonance stage.",
-      formula1: "I(t) = I₀ [1 + m·s(t)]",
-      formula2: "τ·dT/dt = I(t) − T,   p(t) ∝ dT/dt",
+      formula1: "I(t) = I0 [1 + m·s(t)]",
+      formula2: "tau·dT/dt = I(t) - T,   p(t) ∝ dT/dt",
       chain: ["Modulated light", "Thermal response", "Pressure estimate", "Resonant body", "Audio output"],
     };
   }
-  // Default to the electrical/mechanical hum model
   return {
     title: "Electrical / mechanical hum model",
     line1: "The audible sound comes from electronics or magnetic parts vibrating under periodic current and voltage.",
     line2: "This demo uses the modulation as a source, then colors it with a resonant body and optional driver whine.",
-    formula1: "I(t) = I₀ [1 + m·s(t)]",
-    formula2: "p(t) ≈ dry(t) + H_res{dry(t)} + A_{whine}·sin(2π f_{whine} t)",
+    formula1: "I(t) = I0 [1 + m·s(t)]",
+    formula2: "p(t) ≈ dry(t) + Hres{dry(t)} + Awhine·sin(2π fwhine t)",
     chain: ["Current/light modulation", "Dry source", "Resonant filter", "Optional whine", "Audio output"],
   };
 }
 
 function getPreviewData(params) {
-  const points = 240;
+  const points = 220;
   const light = [];
   const audio = [];
   const preview = synthesize({ ...params, gain: 1 }, 0.06, 4000);
@@ -350,12 +421,12 @@ function drawSeries(canvas, series, color, center = false) {
   ctx.clearRect(0, 0, width, height);
 
   const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, "rgba(18,34,59,0.92)");
-  bg.addColorStop(1, "rgba(8,13,25,0.92)");
+  bg.addColorStop(0, hexToRgba(state.theme.darkStart, 0.94));
+  bg.addColorStop(1, hexToRgba(state.theme.darkEnd, 0.96));
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 
-  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.strokeStyle = hexToRgba(state.theme.text, 0.08);
   ctx.lineWidth = 1;
   for (let i = 1; i < 4; i += 1) {
     const y = (height / 4) * i;
@@ -365,7 +436,7 @@ function drawSeries(canvas, series, color, center = false) {
     ctx.stroke();
   }
   if (center) {
-    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.strokeStyle = hexToRgba(state.theme.text, 0.16);
     ctx.beginPath();
     ctx.moveTo(0, height / 2);
     ctx.lineTo(width, height / 2);
@@ -373,7 +444,7 @@ function drawSeries(canvas, series, color, center = false) {
   }
 
   ctx.strokeStyle = color;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
   series.forEach((p, i) => {
     const x = (p.x / Math.max(1, series.length - 1)) * width;
@@ -383,48 +454,6 @@ function drawSeries(canvas, series, color, center = false) {
     else ctx.lineTo(x, y);
   });
   ctx.stroke();
-}
-
-// Compute a basic discrete Fourier transform (DFT) of the provided sample array. This
-// returns a normalized magnitude spectrum array of length N/2 (positive
-// frequencies). The computation is naive (O(N^2)) but N is kept small for
-// previews. If `n` is not a power of two, samples are zero‑padded to the next
-// power of two.
-function computeFFT(samples, sampleRate) {
-  let N = 1;
-  while (N < samples.length) N <<= 1;
-  const re = new Array(N).fill(0);
-  const im = new Array(N).fill(0);
-  for (let i = 0; i < samples.length; i += 1) {
-    re[i] = samples[i];
-  }
-  const half = N / 2;
-  const mags = new Array(half).fill(0);
-  for (let k = 0; k < half; k += 1) {
-    let sumRe = 0;
-    let sumIm = 0;
-    const freqFactor = (-2 * Math.PI * k) / N;
-    for (let n = 0; n < N; n += 1) {
-      const angle = freqFactor * n;
-      const c = Math.cos(angle);
-      const s = Math.sin(angle);
-      sumRe += re[n] * c + im[n] * s;
-      sumIm += im[n] * c - re[n] * s;
-    }
-    const magnitude = Math.sqrt(sumRe * sumRe + sumIm * sumIm);
-    mags[k] = magnitude;
-  }
-  // Normalize magnitudes between 0 and 1 for plotting
-  const maxMag = Math.max(...mags) || 1;
-  return mags.map((m) => m / maxMag);
-}
-
-// Draw an FFT magnitude spectrum on the provided canvas. Uses the same drawing
-// scheme as drawSeries (background grid and lines). The `spectrum` array
-// contains normalized magnitudes.
-function drawSpectrum(canvas, spectrum) {
-  const series = spectrum.map((y, idx) => ({ x: idx, y }));
-  drawSeries(canvas, series, "#ffd38d", false);
 }
 
 function buildControls() {
@@ -452,7 +481,7 @@ function buildControls() {
     if (config.type === "select") {
       wrapper.innerHTML = `
         <div class="control-top">
-          <div><div class="control-label">${config.label}</div></div>
+          <div><div class="control-label">${config.label}</div>${config.hint ? `<div class="control-hint">${config.hint}</div>` : ""}</div>
         </div>
         <select id="control-${config.key}">
           ${config.options.map((option) => `<option value="${option}">${option}</option>`).join("")}
@@ -478,6 +507,40 @@ function buildControls() {
       input.addEventListener("change", () => updateParam(config.key, Number(input.value), true));
     }
     els.controlsContainer.appendChild(wrapper);
+  });
+}
+
+function buildThemeControls() {
+  els.themeControls.innerHTML = "";
+  THEME_FIELDS.forEach((config) => {
+    const wrapper = document.createElement("label");
+    wrapper.className = "theme-card";
+    wrapper.innerHTML = `
+      <div class="theme-top">
+        <div>
+          <div class="theme-label">${config.label}</div>
+          <div class="theme-hint">${config.hint}</div>
+        </div>
+      </div>
+      <input id="theme-${config.key}" type="color" value="${state.theme[config.key]}" />
+    `;
+    els.themeControls.appendChild(wrapper);
+  });
+}
+
+function readThemeInputs() {
+  const nextTheme = { ...state.theme };
+  THEME_FIELDS.forEach((config) => {
+    const input = document.getElementById(`theme-${config.key}`);
+    if (input) nextTheme[config.key] = input.value;
+  });
+  return nextTheme;
+}
+
+function syncThemeInputs() {
+  THEME_FIELDS.forEach((config) => {
+    const input = document.getElementById(`theme-${config.key}`);
+    if (input) input.value = state.theme[config.key];
   });
 }
 
@@ -517,11 +580,8 @@ function syncControlValues() {
   CONTROL_CONFIG.forEach((config) => {
     const input = document.getElementById(`control-${config.key}`);
     if (!input) return;
-    if (config.type === "checkbox") {
-      input.checked = !!state.params[config.key];
-    } else {
-      input.value = state.params[config.key];
-    }
+    if (config.type === "checkbox") input.checked = !!state.params[config.key];
+    else input.value = state.params[config.key];
     const valueEl = document.getElementById(`value-${config.key}`);
     if (valueEl) valueEl.textContent = formatValue(state.params[config.key], config.step);
   });
@@ -548,6 +608,24 @@ function setParams(nextParams) {
   els.labelInput.value = state.params.label;
   render();
   if (state.isPlaying) startAudio();
+}
+
+function syncActiveTab() {
+  const mobile = window.innerWidth <= TAB_BREAKPOINT;
+  els.tabButtons.forEach((button) => {
+    const isActive = button.dataset.tab === state.activeTab;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+  els.paneSections.forEach((section) => {
+    const pane = section.dataset.pane;
+    section.classList.toggle("hidden-pane", mobile && pane !== state.activeTab);
+  });
+}
+
+function setActiveTab(tab) {
+  state.activeTab = tab;
+  syncActiveTab();
 }
 
 async function ensureAudioContext() {
@@ -646,31 +724,10 @@ function exportJson() {
   setStatus("Preset JSON exported.");
 }
 
-// Export a CSV of the magnitude spectrum for the current settings. This
-// computes a one‑second synthesize of the model at a modest sample rate,
-// performs an FFT and outputs frequency in Hz and normalized amplitude.
-function exportCsv() {
-  try {
-    // Compute one second of audio at a moderate sample rate to capture
-    // frequency content. Using 8000 Hz keeps the FFT manageable while
-    // providing enough resolution for a typical audible range. For models
-    // that rely on sonification, this still produces meaningful data.
-    const fs = 8000;
-    const samples = synthesize(state.params, 1, fs);
-    // Ensure samples is a standard array for computeFFT
-    const spectrum = computeFFT(Array.from(samples), fs);
-    const N = spectrum.length;
-    let csv = "frequency,amplitude\n";
-    for (let k = 0; k < N; k += 1) {
-      const freq = (k * fs) / (2 * N);
-      csv += `${freq.toFixed(2)},${spectrum[k].toFixed(6)}\n`;
-    }
-    const blob = new Blob([csv], { type: "text/csv" });
-    downloadBlob(blob, `${safeName(state.params.label)}-spectrum.csv`);
-    setStatus("Spectrum CSV exported.");
-  } catch (err) {
-    setStatus(err.message || "Spectrum export failed.");
-  }
+function exportThemeJson() {
+  const blob = new Blob([JSON.stringify(state.theme, null, 2)], { type: "application/json" });
+  downloadBlob(blob, "distant-lights-theme.json");
+  setStatus("Theme JSON exported.");
 }
 
 function saveToBrowser() {
@@ -732,36 +789,23 @@ function renderModelSummary() {
 
 function renderCanvases() {
   const preview = getPreviewData(state.params);
-  drawSeries(els.lightCanvas, preview.light, "#79e3ff", false);
+  drawSeries(els.lightCanvas, preview.light, state.theme.accent, false);
   drawSeries(
     els.audioCanvas,
     preview.audio.map((p) => ({ x: p.x, y: 0.5 + p.y * 0.45 })),
-    "#f093fb",
+    state.theme.accent2,
     true,
   );
-
-  // Compute and draw FFT spectrum for the output preview. A small segment
-  // suffices for visual feedback. Use the same preview samples generated
-  // inside getPreviewData by running the synthesizer at a reduced sample rate.
-  try {
-    // Generate a short preview of the synthesized signal. Use a lower sample
-    // rate (e.g. 4000 Hz) to keep FFT computation inexpensive.
-    const fftSamples = synthesize({ ...state.params, gain: 1 }, 0.05, 4000);
-    const spectrum = computeFFT(Array.from(fftSamples), 4000);
-    drawSpectrum(els.fftCanvas, spectrum);
-  } catch {
-    // If synthesis fails, clear the FFT canvas
-    const ctx = els.fftCanvas.getContext("2d");
-    ctx.clearRect(0, 0, els.fftCanvas.width, els.fftCanvas.height);
-  }
 }
 
 function render() {
   syncControlValues();
+  syncThemeInputs();
   renderModelSummary();
   renderCanvases();
   populatePresetSelect();
   refreshSavedPresetSelect();
+  syncActiveTab();
 }
 
 function bindEvents() {
@@ -778,25 +822,42 @@ function bindEvents() {
   els.exportWavBtn.addEventListener("click", exportWav);
   els.recordBtn.addEventListener("click", recordLive);
   els.exportJsonBtn.addEventListener("click", exportJson);
-  els.exportCsvBtn && els.exportCsvBtn.addEventListener("click", exportCsv);
   els.saveBrowserBtn.addEventListener("click", saveToBrowser);
   els.loadBrowserBtn.addEventListener("click", loadFromBrowser);
   els.deleteBrowserBtn.addEventListener("click", deleteFromBrowser);
+  els.applyThemeBtn.addEventListener("click", () => {
+    applyTheme(readThemeInputs(), true);
+    renderCanvases();
+    setStatus("Colours applied and saved in this browser.");
+  });
+  els.resetThemeBtn.addEventListener("click", () => {
+    applyTheme(DEFAULT_THEME, true);
+    syncThemeInputs();
+    renderCanvases();
+    setStatus("Colours reset.");
+  });
+  els.downloadThemeBtn.addEventListener("click", exportThemeJson);
   els.importPresetInput.addEventListener("change", (event) => {
     const file = event.target.files && event.target.files[0];
     if (file) importPresetFile(file);
     event.target.value = "";
   });
+  els.tabButtons.forEach((button) => {
+    button.addEventListener("click", () => setActiveTab(button.dataset.tab));
+  });
+  window.addEventListener("resize", syncActiveTab);
 }
 
 function init() {
+  applyTheme(state.theme, false);
   buildControls();
+  buildThemeControls();
   populatePresetSelect();
   refreshSavedPresetSelect();
   bindEvents();
   els.labelInput.value = state.params.label;
   els.capabilityText.textContent = window.AudioContext || window.webkitAudioContext
-    ? "Static demo loaded. Play, record, download and save all work in modern Chromium-based browsers and Safari."
+    ? "Static demo loaded. The mobile layout now uses section tabs so you do not have to scroll through one giant page."
     : "This browser does not expose Web Audio. The UI will load, but playback will not work.";
   render();
 }

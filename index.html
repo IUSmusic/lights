@@ -24,10 +24,18 @@
         <div class="status" id="statusText">Ready</div>
       </header>
 
+      <nav class="section-tabs" aria-label="Sections">
+        <button class="tab-btn active" data-tab="overview" type="button">Overview</button>
+        <button class="tab-btn" data-tab="controls" type="button">Controls</button>
+        <button class="tab-btn" data-tab="theme" type="button">Theme</button>
+        <button class="tab-btn" data-tab="saved" type="button">Saved</button>
+        <button class="tab-btn" data-tab="help" type="button">Help</button>
+      </nav>
+
       <main class="grid">
         <section class="left-col">
-          <div class="card dark controls-hero">
-            <div class="row wrap gap">
+          <div class="card dark controls-hero panel-section" data-pane="overview">
+            <div class="row wrap gap compact-row">
               <label class="field grow">
                 <span>Preset</span>
                 <select id="presetSelect"></select>
@@ -38,13 +46,12 @@
               </label>
             </div>
 
-            <div class="button-row wrap">
+            <div class="button-row wrap compact-row">
               <button id="playBtn" class="primary">Play</button>
               <button id="stopBtn">Stop</button>
               <button id="exportWavBtn">Download WAV</button>
               <button id="recordBtn">Record 8s</button>
               <button id="exportJsonBtn">Download preset</button>
-              <button id="exportCsvBtn">Download spectrum</button>
               <button id="saveBrowserBtn">Save to browser</button>
               <label class="button like-button">
                 Import preset
@@ -57,26 +64,20 @@
             </div>
           </div>
 
-          <div class="preview-grid">
+          <div class="preview-grid panel-section" data-pane="overview">
             <section class="card dark">
               <div class="section-title">Light modulation preview</div>
-              <canvas id="lightCanvas" width="640" height="220"></canvas>
+              <canvas id="lightCanvas" width="640" height="180"></canvas>
               <p class="hint">Source intensity waveform I(t). Frequency, duty cycle and depth shape the modulation.</p>
             </section>
             <section class="card dark">
               <div class="section-title">Audio output preview</div>
-              <canvas id="audioCanvas" width="640" height="220"></canvas>
+              <canvas id="audioCanvas" width="640" height="180"></canvas>
               <p class="hint">Estimated pressure/audio signal after model response, resonance, optional whine and gain.</p>
-            </section>
-            <!-- New spectrum section for FFT magnitude plot -->
-            <section class="card dark">
-              <div class="section-title">Spectrum preview</div>
-              <canvas id="fftCanvas" width="640" height="220"></canvas>
-              <p class="hint">Magnitude of the frequency spectrum (FFT) of the modeled output signal.</p>
             </section>
           </div>
 
-          <section class="card dark chain-card">
+          <section class="card dark chain-card panel-section" data-pane="overview">
             <div class="section-title">What is happening</div>
             <div class="chain" id="chainText"></div>
             <div class="summary-grid">
@@ -102,14 +103,31 @@
         </section>
 
         <aside class="right-col">
-          <section class="card">
-            <h2>Controls</h2>
+          <section class="card panel-section" data-pane="controls">
+            <div class="section-header-row">
+              <h2>Controls</h2>
+              <span class="micro-copy">Compact on mobile</span>
+            </div>
             <div id="controlsContainer" class="controls-grid"></div>
           </section>
 
-          <section class="card">
+          <section class="card panel-section" data-pane="theme">
+            <div class="section-header-row">
+              <h2>Theme colours</h2>
+              <span class="micro-copy">Pick, apply, then tell me the final colours later</span>
+            </div>
+            <div id="themeControls" class="theme-grid"></div>
+            <div class="button-row wrap compact-row top-space">
+              <button id="applyThemeBtn" class="primary" type="button">Apply colours</button>
+              <button id="resetThemeBtn" type="button">Reset colours</button>
+              <button id="downloadThemeBtn" type="button">Download theme</button>
+            </div>
+            <p class="hint">The colour pickers update every major UI surface. Your choice is also saved in this browser.</p>
+          </section>
+
+          <section class="card panel-section" data-pane="saved">
             <h2>Saved browser presets</h2>
-            <div class="row gap wrap">
+            <div class="row gap wrap compact-row">
               <select id="savedPresetSelect" class="grow"></select>
               <button id="loadBrowserBtn">Load</button>
               <button id="deleteBrowserBtn">Delete</button>
@@ -117,14 +135,14 @@
             <p class="hint">These use localStorage in your browser. Downloaded JSON presets are portable.</p>
           </section>
 
-          <section class="card">
+          <section class="card panel-section" data-pane="help">
             <h2>How to use this demo</h2>
             <ol class="steps">
               <li>Choose a preset or edit the sliders.</li>
               <li>Press Play to hear the modeled output.</li>
               <li>Watch the waveform previews to see the source and output signals.</li>
               <li>Download WAV for high-quality audio, or Record 8s for a quick live capture.</li>
-              <li>Save presets as JSON or in the browser for reuse.</li>
+              <li>Use the theme tab to try colours, then keep the final palette for the next build.</li>
             </ol>
           </section>
         </aside>
