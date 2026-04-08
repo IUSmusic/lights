@@ -1,7 +1,7 @@
 :root {
-  --bg: #09111f;
-  --panel: #111b2e;
-  --panel-light: #f7f8fc;
+  --bg: #000000;
+  --panel: #000000;
+  --panel-light: #000000;
   --line: rgba(255,255,255,0.12);
   --text: #e9edf6;
   --muted: #aeb9d0;
@@ -135,7 +135,10 @@ button.primary { background: #ffffff; color: #0d1526; font-weight: 700; }
 }
 .preview-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Allow an arbitrary number of children to flow into columns evenly. Using auto-fit
+     ensures that if more preview panels (like a spectrum view) are added, the grid
+     distributes them uniformly on larger screens while stacking on smaller screens. */
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 22px;
 }
 canvas {

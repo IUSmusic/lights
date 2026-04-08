@@ -4,6 +4,9 @@ const EXPORT_SECONDS = 8;
 const RECORD_SECONDS = 8;
 const STORAGE_KEY = "distant-lights-saved-presets-v1";
 
+// Default parameters for the demo. Additional fields such as `material` and
+// `acousticCutoff` support the more advanced photoacoustic model. See
+// `CONTROL_CONFIG` for slider/select definitions.
 const DEFAULT_PARAMS = {
   label: "Custom",
   mode: "electrical",
@@ -12,6 +15,8 @@ const DEFAULT_PARAMS = {
   duty: 0.3,
   depth: 0.8,
   thermalCutoff: 80,
+  acousticCutoff: 1000,
+  material: "Soft Tissue",
   resonanceHz: 180,
   resonanceQ: 1.2,
   resonanceMix: 0.28,
@@ -38,21 +43,27 @@ const PRESETS = [
   },
   {
     name: "Photoacoustic chopped light",
-    params: { ...DEFAULT_PARAMS, label: "Photoacoustic chopped light", mode: "photoacoustic", baseFreq: 440, waveform: "square", duty: 0.5, depth: 1, thermalCutoff: 120, resonanceHz: 440, resonanceQ: 6, resonanceMix: 0.5, noiseLevel: 0.004, gain: 5 },
+    params: { ...DEFAULT_PARAMS, label: "Photoacoustic chopped light", mode: "photoacoustic", baseFreq: 440, waveform: "square", duty: 0.5, depth: 1, thermalCutoff: 120, acousticCutoff: 1500, material: "Soft Tissue", resonanceHz: 440, resonanceQ: 6, resonanceMix: 0.5, noiseLevel: 0.004, gain: 5 },
   },
   {
     name: "Slow collision beacon (sonified)",
     params: { ...DEFAULT_PARAMS, label: "Slow collision beacon (sonified)", mode: "electrical", baseFreq: 1.2, waveform: "pwm", duty: 0.18, depth: 1, lowFreqSonify: true, carrierFreq: 330, resonanceHz: 330, resonanceQ: 3.5, resonanceMix: 0.2, noiseLevel: 0.003, gain: 2.5 },
   },
+  {
+    name: "Photoacoustic advanced (soft tissue)",
+    params: { ...DEFAULT_PARAMS, label: "Photoacoustic advanced", mode: "photoacoustic-full", baseFreq: 220, waveform: "square", duty: 0.5, depth: 1, thermalCutoff: 100, acousticCutoff: 1200, material: "Soft Tissue", resonanceHz: 220, resonanceQ: 4, resonanceMix: 0.4, noiseLevel: 0.003, gain: 5 },
+  },
 ];
 
 const CONTROL_CONFIG = [
-  { key: "mode", type: "select", label: "Mode", options: ["electrical", "photoacoustic"] },
+  { key: "mode", type: "select", label: "Mode", options: ["electrical", "photoacoustic", "photoacoustic-full"], hint: "Choose the underlying physical model." },
   { key: "waveform", type: "select", label: "Waveform", options: ["sine", "square", "triangle", "pwm", "abs-sine"] },
   { key: "baseFreq", type: "range", label: "Base frequency (Hz)", min: 0.2, max: 2000, step: 0.1, hint: "100 Hz is common in UK mains ripple lighting." },
   { key: "depth", type: "range", label: "Modulation depth", min: 0, max: 1, step: 0.01, hint: "How strongly the light or current varies over time." },
   { key: "duty", type: "range", label: "PWM duty", min: 0.02, max: 0.98, step: 0.01, hint: "Only matters for PWM-style waveforms." },
-  { key: "thermalCutoff", type: "range", label: "Thermal cutoff (Hz)", min: 1, max: 1000, step: 1, hint: "Mainly for photoacoustic mode." },
+  { key: "thermalCutoff", type: "range", label: "Thermal cutoff (Hz)", min: 1, max: 2000, step: 1, hint: "Time constant for thermal diffusion." },
+  { key: "acousticCutoff", type: "range", label: "Acoustic cutoff (Hz)", min: 20, max: 10000, step: 10, hint: "High-pass filter for the full photoacoustic model." },
+  { key: "material", type: "select", label: "Material", options: ["Soft Tissue", "Water", "Metal", "Glass", "Plastic"], hint: "Select material for approximate thermal and acoustic properties." },
   { key: "resonanceHz", type: "range", label: "Resonance center (Hz)", min: 20, max: 12000, step: 1, hint: "Mechanical body or enclosure resonance." },
   { key: "resonanceQ", type: "range", label: "Resonance Q", min: 0.2, max: 20, step: 0.1, hint: "Higher Q means a narrower ring." },
   { key: "resonanceMix", type: "range", label: "Resonance mix", min: 0, max: 1, step: 0.01, hint: "Blend between dry signal and resonant body." },
@@ -86,6 +97,7 @@ const els = {
   capabilityText: document.getElementById("capabilityText"),
   lightCanvas: document.getElementById("lightCanvas"),
   audioCanvas: document.getElementById("audioCanvas"),
+  fftCanvas: document.getElementById("fftCanvas"),
   modelTitle: document.getElementById("modelTitle"),
   modelLine1: document.getElementById("modelLine1"),
   modelLine2: document.getElementById("modelLine2"),
@@ -100,6 +112,7 @@ const els = {
   exportWavBtn: document.getElementById("exportWavBtn"),
   recordBtn: document.getElementById("recordBtn"),
   exportJsonBtn: document.getElementById("exportJsonBtn"),
+  exportCsvBtn: document.getElementById("exportCsvBtn"),
   saveBrowserBtn: document.getElementById("saveBrowserBtn"),
   loadBrowserBtn: document.getElementById("loadBrowserBtn"),
   deleteBrowserBtn: document.getElementById("deleteBrowserBtn"),
@@ -158,9 +171,19 @@ function applyBandPass(samples, sampleRate, f0, q) {
 function synthesize(params, seconds, sampleRate = SAMPLE_RATE) {
   const total = Math.floor(seconds * sampleRate);
   const dry = new Float32Array(total);
+  // Thermal filter coefficient for both basic photoacoustic and full models. The factor
+  // determines how quickly heat decays (higher cutoff → faster decay).
   const alpha = 1 - Math.exp((-2 * Math.PI * Math.max(0.1, params.thermalCutoff)) / sampleRate);
   let thermal = 0;
   let prevThermal = 0;
+  // High-pass filter state for the full photoacoustic model
+  const dt = 1 / sampleRate;
+  const acCut = Math.max(1, params.acousticCutoff || 1000);
+  const RC = 1 / (2 * Math.PI * acCut);
+  const hpAlpha = RC / (RC + dt);
+  let hpPrevX = 0;
+  let hpPrevY = 0;
+  // Seed for pseudo-random noise
   let seed = 1337;
 
   for (let i = 0; i < total; i += 1) {
@@ -170,20 +193,35 @@ function synthesize(params, seconds, sampleRate = SAMPLE_RATE) {
     let x = 0;
 
     if (params.lowFreqSonify || params.baseFreq < 20) {
+      // Carrier-based sonification for very low modulation frequencies
       const carrier = Math.sin(2 * Math.PI * params.carrierFreq * t);
       x = (light - 0.5) * carrier * 2;
     } else if (params.mode === "photoacoustic") {
+      // Basic photoacoustic approximation: single thermal low-pass then derivative
       thermal += alpha * (light - thermal);
       x = (thermal - prevThermal) * sampleRate * 0.01;
       prevThermal = thermal;
+    } else if (params.mode === "photoacoustic-full") {
+      // Full photoacoustic model: thermal low-pass → derivative → acoustic high-pass
+      thermal += alpha * (light - thermal);
+      const diff = (thermal - prevThermal) * sampleRate * 0.01;
+      prevThermal = thermal;
+      // RC high-pass filter; hpAlpha derived from RC and sample interval
+      const y = hpAlpha * (hpPrevY + diff - hpPrevX);
+      hpPrevX = diff;
+      hpPrevY = y;
+      x = y;
     } else {
+      // Electrical / mechanical hum model: treat modulation as symmetrical AC current
       x = light - 0.5;
     }
 
+    // Add optional high-frequency driver or capacitor whine
     if (params.whineFreq > 0 && params.whineLevel > 0) {
       x += params.whineLevel * Math.sin(2 * Math.PI * params.whineFreq * t);
     }
 
+    // Pseudo-random broadband noise
     if (params.noiseLevel > 0) {
       seed = (1664525 * seed + 1013904223) >>> 0;
       const noise = (seed / 0xffffffff) * 2 - 1;
@@ -257,22 +295,34 @@ function safeName(text) {
 }
 
 function physicsSummary(params) {
+  // Provide explanatory text and equations depending on the selected model.
+  if (params.mode === "photoacoustic-full") {
+    return {
+      title: "Full photoacoustic model",
+      line1: "Absorbed modulated light causes heating; the pressure signal follows the time derivative and an acoustic high-pass.",
+      line2: "Material: " + params.material + ". Adjustable thermal and acoustic cutoffs approximate diffusion and stress wave propagation.",
+      formula1: "I(t) = I₀ [1 + m·s(t)],   tau_th·dT/dt = I(t) − T",
+      formula2: "p(t) ∝ HP_{tau_ac}(dT/dt)",
+      chain: ["Modulated light", "Thermal diffusion", "Thermal derivative", "Acoustic high-pass", "Resonant body", "Audio output"],
+    };
+  }
   if (params.mode === "photoacoustic") {
     return {
       title: "Photoacoustic approximation",
       line1: "Absorbed light becomes heat, and periodic heating drives periodic pressure changes.",
       line2: "This demo uses a thermal low-pass plus a derivative-like pressure estimate, then an acoustic resonance stage.",
       formula1: "I(t) = I₀ [1 + m·s(t)]",
-      formula2: "τ·dT/dt = I(t) - T,   p(t) ∝ dT/dt",
+      formula2: "τ·dT/dt = I(t) − T,   p(t) ∝ dT/dt",
       chain: ["Modulated light", "Thermal response", "Pressure estimate", "Resonant body", "Audio output"],
     };
   }
+  // Default to the electrical/mechanical hum model
   return {
     title: "Electrical / mechanical hum model",
     line1: "The audible sound comes from electronics or magnetic parts vibrating under periodic current and voltage.",
     line2: "This demo uses the modulation as a source, then colors it with a resonant body and optional driver whine.",
     formula1: "I(t) = I₀ [1 + m·s(t)]",
-    formula2: "p(t) ≈ dry(t) + Hres{dry(t)} + Awhine·sin(2π fwhine t)",
+    formula2: "p(t) ≈ dry(t) + H_res{dry(t)} + A_{whine}·sin(2π f_{whine} t)",
     chain: ["Current/light modulation", "Dry source", "Resonant filter", "Optional whine", "Audio output"],
   };
 }
@@ -333,6 +383,48 @@ function drawSeries(canvas, series, color, center = false) {
     else ctx.lineTo(x, y);
   });
   ctx.stroke();
+}
+
+// Compute a basic discrete Fourier transform (DFT) of the provided sample array. This
+// returns a normalized magnitude spectrum array of length N/2 (positive
+// frequencies). The computation is naive (O(N^2)) but N is kept small for
+// previews. If `n` is not a power of two, samples are zero‑padded to the next
+// power of two.
+function computeFFT(samples, sampleRate) {
+  let N = 1;
+  while (N < samples.length) N <<= 1;
+  const re = new Array(N).fill(0);
+  const im = new Array(N).fill(0);
+  for (let i = 0; i < samples.length; i += 1) {
+    re[i] = samples[i];
+  }
+  const half = N / 2;
+  const mags = new Array(half).fill(0);
+  for (let k = 0; k < half; k += 1) {
+    let sumRe = 0;
+    let sumIm = 0;
+    const freqFactor = (-2 * Math.PI * k) / N;
+    for (let n = 0; n < N; n += 1) {
+      const angle = freqFactor * n;
+      const c = Math.cos(angle);
+      const s = Math.sin(angle);
+      sumRe += re[n] * c + im[n] * s;
+      sumIm += im[n] * c - re[n] * s;
+    }
+    const magnitude = Math.sqrt(sumRe * sumRe + sumIm * sumIm);
+    mags[k] = magnitude;
+  }
+  // Normalize magnitudes between 0 and 1 for plotting
+  const maxMag = Math.max(...mags) || 1;
+  return mags.map((m) => m / maxMag);
+}
+
+// Draw an FFT magnitude spectrum on the provided canvas. Uses the same drawing
+// scheme as drawSeries (background grid and lines). The `spectrum` array
+// contains normalized magnitudes.
+function drawSpectrum(canvas, spectrum) {
+  const series = spectrum.map((y, idx) => ({ x: idx, y }));
+  drawSeries(canvas, series, "#ffd38d", false);
 }
 
 function buildControls() {
@@ -554,6 +646,33 @@ function exportJson() {
   setStatus("Preset JSON exported.");
 }
 
+// Export a CSV of the magnitude spectrum for the current settings. This
+// computes a one‑second synthesize of the model at a modest sample rate,
+// performs an FFT and outputs frequency in Hz and normalized amplitude.
+function exportCsv() {
+  try {
+    // Compute one second of audio at a moderate sample rate to capture
+    // frequency content. Using 8000 Hz keeps the FFT manageable while
+    // providing enough resolution for a typical audible range. For models
+    // that rely on sonification, this still produces meaningful data.
+    const fs = 8000;
+    const samples = synthesize(state.params, 1, fs);
+    // Ensure samples is a standard array for computeFFT
+    const spectrum = computeFFT(Array.from(samples), fs);
+    const N = spectrum.length;
+    let csv = "frequency,amplitude\n";
+    for (let k = 0; k < N; k += 1) {
+      const freq = (k * fs) / (2 * N);
+      csv += `${freq.toFixed(2)},${spectrum[k].toFixed(6)}\n`;
+    }
+    const blob = new Blob([csv], { type: "text/csv" });
+    downloadBlob(blob, `${safeName(state.params.label)}-spectrum.csv`);
+    setStatus("Spectrum CSV exported.");
+  } catch (err) {
+    setStatus(err.message || "Spectrum export failed.");
+  }
+}
+
 function saveToBrowser() {
   const saved = loadSavedPresets().filter((item) => item.label !== state.params.label);
   saved.push(cloneParams(state.params));
@@ -620,6 +739,21 @@ function renderCanvases() {
     "#f093fb",
     true,
   );
+
+  // Compute and draw FFT spectrum for the output preview. A small segment
+  // suffices for visual feedback. Use the same preview samples generated
+  // inside getPreviewData by running the synthesizer at a reduced sample rate.
+  try {
+    // Generate a short preview of the synthesized signal. Use a lower sample
+    // rate (e.g. 4000 Hz) to keep FFT computation inexpensive.
+    const fftSamples = synthesize({ ...state.params, gain: 1 }, 0.05, 4000);
+    const spectrum = computeFFT(Array.from(fftSamples), 4000);
+    drawSpectrum(els.fftCanvas, spectrum);
+  } catch {
+    // If synthesis fails, clear the FFT canvas
+    const ctx = els.fftCanvas.getContext("2d");
+    ctx.clearRect(0, 0, els.fftCanvas.width, els.fftCanvas.height);
+  }
 }
 
 function render() {
@@ -644,6 +778,7 @@ function bindEvents() {
   els.exportWavBtn.addEventListener("click", exportWav);
   els.recordBtn.addEventListener("click", recordLive);
   els.exportJsonBtn.addEventListener("click", exportJson);
+  els.exportCsvBtn && els.exportCsvBtn.addEventListener("click", exportCsv);
   els.saveBrowserBtn.addEventListener("click", saveToBrowser);
   els.loadBrowserBtn.addEventListener("click", loadFromBrowser);
   els.deleteBrowserBtn.addEventListener("click", deleteFromBrowser);
