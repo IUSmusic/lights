@@ -6,144 +6,83 @@
     <title>Distant Lights</title>
     <meta
       name="description"
-      content="Distant Lights is a static browser demo for exploring light modulation, electrical/mechanical hum, photoacoustic approximation, and sonification of slow beacons."
+      content="Compact physics-informed light-to-sound demo."
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="page">
-      <header class="hero card dark">
-        <div>
-          <div class="eyebrow">Distant Lights</div>
-          <h1>Physics-informed light-to-sound demo</h1>
-          <p class="lede">
-            Hear modeled electrical hum, a simplified photoacoustic response, and carrier-based sonification
-            for slow flashing lights. This version is a static site: no build step, no framework install, no blank-screen GitHub Pages issue.
-          </p>
-        </div>
-        <div class="status" id="statusText">Ready</div>
-      </header>
-
-      <nav class="section-tabs" aria-label="Sections">
-        <button class="tab-btn active" data-tab="overview" type="button">Overview</button>
-        <button class="tab-btn" data-tab="controls" type="button">Controls</button>
-        <button class="tab-btn" data-tab="theme" type="button">Theme</button>
-        <button class="tab-btn" data-tab="saved" type="button">Saved</button>
-        <button class="tab-btn" data-tab="help" type="button">Help</button>
-      </nav>
-
-      <main class="grid">
-        <section class="left-col">
-          <div class="card dark controls-hero panel-section" data-pane="overview">
-            <div class="row wrap gap compact-row">
-              <label class="field grow">
-                <span>Preset</span>
-                <select id="presetSelect"></select>
-              </label>
-              <label class="field grow">
-                <span>Label</span>
-                <input id="labelInput" type="text" />
-              </label>
-            </div>
-
-            <div class="button-row wrap compact-row">
-              <button id="playBtn" class="primary">Play</button>
-              <button id="stopBtn">Stop</button>
-              <button id="exportWavBtn">Download WAV</button>
-              <button id="recordBtn">Record 8s</button>
-              <button id="exportJsonBtn">Download preset</button>
-              <button id="saveBrowserBtn">Save to browser</button>
-              <label class="button like-button">
-                Import preset
-                <input id="importPresetInput" type="file" accept="application/json,.json" hidden />
-              </label>
-            </div>
-
-            <div class="small-note" id="capabilityText">
-              Works in modern browsers with Web Audio support.
-            </div>
+    <div class="page app-shell">
+      <main class="app-grid">
+        <section class="panel dark top-panel">
+          <div class="topbar compact-grid">
+            <label class="field preset-field">
+              <span>Preset</span>
+              <select id="presetSelect"></select>
+            </label>
+            <div class="status compact-status" id="statusText">Ready</div>
           </div>
 
-          <div class="preview-grid panel-section" data-pane="overview">
-            <section class="card dark">
-              <div class="section-title">Light modulation preview</div>
-              <canvas id="lightCanvas" width="640" height="180"></canvas>
-              <p class="hint">Source intensity waveform I(t). Frequency, duty cycle and depth shape the modulation.</p>
+          <div class="button-row compact-buttons wrap">
+            <button id="playBtn" class="primary">Play</button>
+            <button id="stopBtn">Stop</button>
+            <button id="exportWavBtn">WAV</button>
+            <button id="recordBtn">Record</button>
+            <button id="exportJsonBtn">Preset</button>
+            <button id="saveBrowserBtn">Save</button>
+            <label class="button like-button compact-file-btn">
+              Import
+              <input id="importPresetInput" type="file" accept="application/json,.json" hidden />
+            </label>
+          </div>
+
+          <div class="preview-grid compact-preview-grid">
+            <section class="preview-card">
+              <div class="mini-title">Light</div>
+              <canvas id="lightCanvas" width="640" height="150"></canvas>
             </section>
-            <section class="card dark">
-              <div class="section-title">Audio output preview</div>
-              <canvas id="audioCanvas" width="640" height="180"></canvas>
-              <p class="hint">Estimated pressure/audio signal after model response, resonance, optional whine and gain.</p>
+            <section class="preview-card">
+              <div class="mini-title">Audio</div>
+              <canvas id="audioCanvas" width="640" height="150"></canvas>
             </section>
           </div>
 
-          <section class="card dark chain-card panel-section" data-pane="overview">
-            <div class="section-title">What is happening</div>
-            <div class="chain" id="chainText"></div>
-            <div class="summary-grid">
-              <div class="summary-box">
-                <div class="summary-label">Model</div>
-                <div class="summary-value" id="modelTitle"></div>
-                <p id="modelLine1"></p>
-                <p id="modelLine2"></p>
+          <section class="compact-summary">
+            <div class="summary-row">
+              <div class="summary-item">
+                <span class="summary-k">Model</span>
+                <span class="summary-v" id="modelTitle"></span>
               </div>
-              <div class="summary-box mono">
-                <div class="summary-label">Core equations</div>
-                <div id="formula1"></div>
-                <div id="formula2"></div>
+              <div class="summary-item">
+                <span class="summary-k">Interpretation</span>
+                <span class="summary-v" id="literalStatus"></span>
               </div>
-              <div class="summary-box mono">
-                <div class="summary-label">Current interpretation</div>
-                <div id="literalStatus"></div>
-                <div id="numericSummary"></div>
+              <div class="summary-item wide">
+                <span class="summary-k">Params</span>
+                <span class="summary-v mono" id="numericSummary"></span>
               </div>
             </div>
-            <div class="warning" id="warningBox"></div>
+            <div class="formula-row mono">
+              <div id="formula1"></div>
+              <div id="formula2"></div>
+            </div>
+            <div class="warning compact-warning" id="warningBox"></div>
           </section>
         </section>
 
-        <aside class="right-col">
-          <section class="card panel-section" data-pane="controls">
-            <div class="section-header-row">
-              <h2>Controls</h2>
-              <span class="micro-copy">Compact on mobile</span>
-            </div>
-            <div id="controlsContainer" class="controls-grid"></div>
-          </section>
+        <aside class="panel light side-panel">
+          <div class="section-head">
+            <h2>Controls</h2>
+            <div class="small-note" id="capabilityText">Ready</div>
+          </div>
+          <div id="controlsContainer" class="controls-grid compact-controls"></div>
 
-          <section class="card panel-section" data-pane="theme">
-            <div class="section-header-row">
-              <h2>Theme colours</h2>
-              <span class="micro-copy">Pick, apply, then tell me the final colours later</span>
-            </div>
-            <div id="themeControls" class="theme-grid"></div>
-            <div class="button-row wrap compact-row top-space">
-              <button id="applyThemeBtn" class="primary" type="button">Apply colours</button>
-              <button id="resetThemeBtn" type="button">Reset colours</button>
-              <button id="downloadThemeBtn" type="button">Download theme</button>
-            </div>
-            <p class="hint">The colour pickers update every major UI surface. Your choice is also saved in this browser.</p>
-          </section>
-
-          <section class="card panel-section" data-pane="saved">
-            <h2>Saved browser presets</h2>
-            <div class="row gap wrap compact-row">
+          <section class="saved-inline">
+            <div class="saved-head">Saved browser presets</div>
+            <div class="saved-row">
               <select id="savedPresetSelect" class="grow"></select>
               <button id="loadBrowserBtn">Load</button>
               <button id="deleteBrowserBtn">Delete</button>
             </div>
-            <p class="hint">These use localStorage in your browser. Downloaded JSON presets are portable.</p>
-          </section>
-
-          <section class="card panel-section" data-pane="help">
-            <h2>How to use this demo</h2>
-            <ol class="steps">
-              <li>Choose a preset or edit the sliders.</li>
-              <li>Press Play to hear the modeled output.</li>
-              <li>Watch the waveform previews to see the source and output signals.</li>
-              <li>Download WAV for high-quality audio, or Record 8s for a quick live capture.</li>
-              <li>Use the theme tab to try colours, then keep the final palette for the next build.</li>
-            </ol>
           </section>
         </aside>
       </main>
