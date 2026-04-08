@@ -18,8 +18,9 @@
   --primary-text: #ffffff;
   --control-bg: #000000;
   --control-border: #000000;
-  --control-value-bg: #ffffff;
+  --control-value-bg: #000000;
   --canvas-bg: #000000;
+  --sliderTrack: #000000
   --warning: #f4ff54;
   --warning-text: #ff0000;
   --shadow: none;
