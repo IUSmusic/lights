@@ -10,10 +10,6 @@ Distant Lights is a **plain static browser demo** for exploring three related id
 
 ## Features
 
-The revised **Distant Lights** toolkit goes beyond a simple hum simulator.  It is
-designed as both a learning aid and a creative tool for composers and sound
-designers.  Highlights include:
-
 - **Interactive presets** with immediate visual feedback.  All relevant
   parameters (modulation waveform, depth, resonance, whine frequency, photoacoustic
   time constant, carrier for sonification, etc.) are exposed via sliders and
