@@ -94,6 +94,17 @@ export const STORAGE_KEY = "distant-lights-saved-presets-v1";
  * @property {number} gain            – overall linear gain applied after
  *  normalisation.  Larger values make the output louder; values above 1 may
  *  cause clipping if the mix or filter emphasises certain frequencies.
+ * @property {number} temperatureC    – nominal ambient temperature in degrees
+ *  Celsius.  The browser demo uses this to slightly shift resonances and
+ *  stochastic noise, standing in for temperature-dependent material changes.
+ * @property {number} temperatureDrift – slow random drift rate in hertz used
+ *  to wobble resonance/whine terms and make long tones feel less static.
+ * @property {number} electricalLayerGain – gain of the electrical-hum layer
+ *  when multi-model layering is enabled.
+ * @property {number} photoacousticLayerGain – gain of the photoacoustic layer
+ *  when multi-model layering is enabled.
+ * @property {number} sonificationLayerGain – gain of the sonification layer
+ *  when multi-model layering is enabled.
  * @property {boolean} lowFreqSonify  – if true and the base frequency is
  *  below the audible range (≈ 20 Hz), then the modulation envelope is mapped
  *  onto an audible carrier (`carrierFreq`) to produce a tone.  This mode is
@@ -123,6 +134,11 @@ export const DEFAULT_PARAMS = {
   whineLevel: 0,
   noiseLevel: 0.01,
   gain: 2.2,
+  temperatureC: 22,
+  temperatureDrift: 0.015,
+  electricalLayerGain: 1,
+  photoacousticLayerGain: 0,
+  sonificationLayerGain: 0,
   lowFreqSonify: false,
   carrierFreq: 220,
 };
@@ -248,6 +264,8 @@ export const CONTROL_CONFIG = [
   { key: "whineLevel", type: "range", label: "Whine lvl", min: 0, max: 0.5, step: 0.001 },
   { key: "noiseLevel", type: "range", label: "Noise", min: 0, max: 0.1, step: 0.001 },
   { key: "gain", type: "range", label: "Gain", min: 0.1, max: 8, step: 0.1 },
+  { key: "temperatureC", type: "range", label: "Temp °C", min: -10, max: 80, step: 1 },
+  { key: "temperatureDrift", type: "range", label: "Temp drift", min: 0, max: 0.2, step: 0.001 },
   { key: "carrierFreq", type: "range", label: "Carrier", min: 50, max: 2_000, step: 1 },
   { key: "lowFreqSonify", type: "checkbox", label: "Low‑freq sonify" },
 ];
